@@ -19,8 +19,8 @@ from openai.types import (
 )
 from concurrent.futures import ProcessPoolExecutor
 
-from models import Config, ModerationResult, ViolationField
-from utils import sum_dicts
+from src.models import Config, ModerationResult, ViolationField
+from src.utils import sum_dicts
 
 load_dotenv()
 
