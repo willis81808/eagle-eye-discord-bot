@@ -1,7 +1,12 @@
 import os
 import asyncio
 import discord
-from discord import TextChannel
+from discord import (
+    TextChannel,
+    DMChannel,
+    GroupChannel,
+    PartialMessageable,
+)
 from discord.message import Message
 from discord.ext import commands
 from typing import List, cast
@@ -79,11 +84,9 @@ async def analyze_message(message: Message):
             model="omni-moderation-latest",
             input=[part],
         ).results[0]
-        parsed = ModerationResult(result, part)
-        if parsed.flagged:
-            results.append(parsed)
+        results.append(ModerationResult(result, part))
 
-    if results:
+    if any([result.flagged for result in results]):
         await flag_message(message, results)
 
 
@@ -115,12 +118,23 @@ async def flag_message(message: Message, results: List[ModerationResult]):
         inline=False,
     )
 
+    # include link to channel message was sent in
+    if (
+        not isinstance(message.channel, DMChannel)
+        and not isinstance(message.channel, PartialMessageable)
+        and not isinstance(message.channel, GroupChannel)
+    ):
+        moderation_results_embed.add_field(
+            name="Channel",
+            value=message.channel.mention,
+            inline=False,
+        )
+
     # include suspect message
     text_results = [result for result in results if result.type == "text"]
     if text_results:
         result = text_results[0]
-        moderation_results_embed.insert_field_at(
-            index=1,
+        moderation_results_embed.add_field(
             name="Message" + (" (flagged)" if result.flagged else ""),
             value=f"\n{message.content}\n",
             inline=False,
