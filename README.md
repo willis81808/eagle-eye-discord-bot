@@ -1,5 +1,5 @@
 <div align="center">
-    <img wdith="100px", src="https://raw.githubusercontent.com/willis81808/eagle-eye-discord-bot/refs/heads/main/icon.png" />
+    <img width="250px", src="https://raw.githubusercontent.com/willis81808/eagle-eye-discord-bot/refs/heads/main/icon.png" />
 </div>
 
 # Requirements
