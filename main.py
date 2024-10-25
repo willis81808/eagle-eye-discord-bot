@@ -1,5 +1,4 @@
 import os
-import asyncio
 import discord
 from discord import (
     TextChannel,
@@ -17,7 +16,6 @@ from openai.types import (
     ModerationTextInputParam,
     ModerationImageURLInputParam,
 )
-from concurrent.futures import ProcessPoolExecutor
 
 from src.models import Config, ModerationResult, ViolationField
 from src.utils import sum_dicts
@@ -38,7 +36,6 @@ if OPENAI_API_KEY == "":
 
 intents = discord.Intents.default()
 intents.message_content = True
-client = discord.Client(intents=intents)
 bot = commands.Bot(command_prefix="$", intents=intents)
 moderator = OpenAI(api_key=OPENAI_API_KEY)
 
@@ -46,14 +43,14 @@ moderator = OpenAI(api_key=OPENAI_API_KEY)
 config = Config.load()
 
 
-@client.event
+@bot.event
 async def on_ready():
-    print(f"We have logged in as {client.user}")
+    print(f"We have logged in as {bot.user}")
 
 
-@client.event
+@bot.event
 async def on_message(message: Message):
-    if message.author.bot or message.author == client.user:
+    if message.author.bot or message.author == bot.user:
         return
     if not message.guild or not message.channel:
         return
@@ -186,16 +183,4 @@ def msg_to_moderation_input(message: Message) -> List[ModerationMultiModalInputP
     return result
 
 
-def start_client():
-    client.run(DISCORD_BOT_TOKEN)
-
-
-def start_bot():
-    bot.run(DISCORD_BOT_TOKEN)
-
-
-executor = ProcessPoolExecutor(2)
-loop = asyncio.new_event_loop()
-loop.run_in_executor(executor, start_client)
-loop.run_in_executor(executor, start_bot)
-loop.run_forever()
+bot.run(DISCORD_BOT_TOKEN)
