@@ -1,6 +1,7 @@
 import os
 import discord
 from discord import (
+    Member,
     TextChannel,
     DMChannel,
     GroupChannel,
@@ -43,6 +44,56 @@ moderator = OpenAI(api_key=OPENAI_API_KEY)
 config = Config.load()
 
 
+class TestView(discord.ui.View):
+    def __init__(self):
+        super().__init__(timeout=None)
+        self.count = 0
+
+    @discord.ui.button(emoji="➕", custom_id="persistent_view:plus")
+    async def plus(self, interaction: discord.Interaction, button: discord.ui.Button):
+        self.count += 1
+        if interaction.message:
+            await interaction.response.edit_message(
+                content=f"Count: {self.count}", view=self
+            )
+
+
+@bot.command(name="test-view")
+@commands.has_guild_permissions(administrator=True)
+async def test_view(ctx: commands.Context):
+    view = TestView()
+    await ctx.send(content=f"Count: 0", view=view, ephemeral=True)
+
+
+@bot.command(name="scan-profile")
+@commands.has_guild_permissions(administrator=True)
+async def scan_profile(ctx: commands.Context):
+    if not isinstance(ctx.message.author, Member):
+        return
+
+    embed = discord.Embed(title="Profile scan results")
+    author: Member = ctx.message.author
+
+    if author.avatar:
+        embed.add_field(name="Avatar", value=author.avatar.url, inline=False)
+    if author.guild_avatar:
+        embed.add_field(
+            name="Guild Avatar", value=author.guild_avatar.url, inline=False
+        )
+    if author.name:
+        embed.add_field(name="Name", value=author.name)
+    if author.display_name:
+        embed.add_field(name="Display Name", value=author.display_name)
+    if author.global_name:
+        embed.add_field(name="Global Name", value=author.global_name)
+    if author.nick:
+        embed.add_field(name="Nick", value=author.nick)
+    if author.banner:
+        embed.add_field(name="Banner", value=author.banner.url)
+
+    await ctx.send(embed=embed)
+
+
 @bot.event
 async def on_ready():
     print(f"We have logged in as {bot.user}")
@@ -54,10 +105,18 @@ async def on_message(message: Message):
         return
     if not message.guild or not message.channel:
         return
-    await analyze_message(message)
+
+    ctx = await bot.get_context(message)
+    if ctx.valid:
+        await bot.invoke(ctx)
+        return
+
+    if await analyze_message(message):
+        print(f"Message flagged!\n{message.jump_url}")
 
 
 @bot.command(name="set-reports-channel")
+@commands.has_guild_permissions(administrator=True)
 async def set_reports_channel(
     ctx: commands.Context,
     channel_id: int,
@@ -74,7 +133,7 @@ async def set_reports_channel(
         await ctx.reply("Invalid channel ID or channel type")
 
 
-async def analyze_message(message: Message):
+async def analyze_message(message: Message) -> bool:
     results: List[ModerationResult] = list()
     for part in msg_to_moderation_input(message=message):
         result = moderator.moderations.create(
@@ -85,6 +144,8 @@ async def analyze_message(message: Message):
 
     if any([result.flagged for result in results]):
         await flag_message(message, results)
+        return True
+    return False
 
 
 async def flag_message(message: Message, results: List[ModerationResult]):
